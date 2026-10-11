@@ -4,6 +4,9 @@ import { hashPassword } from "../utils/password.js";
 
 /** Explicit opt-in demonstration data; never enable this on an exposed deployment. */
 export async function seedDemo({ db, trackedFlightsService, flightsService }) {
+    if (process.env.NODE_ENV === "production") {
+        throw new Error("Demo seeding is strictly prohibited in production environment.");
+    }
     const users = createUserDAL(db);
     const existingDemoUser = await users.findByEmail("demo@sureflight.local");
     if (existingDemoUser) {
