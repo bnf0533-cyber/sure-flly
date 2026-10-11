@@ -57,6 +57,7 @@ export async function registerTrackedFlightService(
             delayMinutes: 0,
         });
         const routeKeys = [
+            "airline",
             "departureAirport",
             "arrivalAirport",
             "departureLat",
