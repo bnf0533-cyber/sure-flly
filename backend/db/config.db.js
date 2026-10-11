@@ -3,9 +3,17 @@ import "dotenv/config";
 import { readFile } from "node:fs/promises";
 
 const DB_URL = process.env.DB_URL;
+const isProduction = process.env.NODE_ENV === "production";
 const pool = new pg.Pool({
     connectionString: DB_URL,
-    ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
+    ssl: process.env.DB_SSL === "true"
+        ? {
+            rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== undefined
+                ? process.env.DB_SSL_REJECT_UNAUTHORIZED === "true"
+                : isProduction,
+            ...(process.env.DB_CA_CERT ? { ca: process.env.DB_CA_CERT } : {}),
+          }
+        : false,
     max: 10,
     connectionTimeoutMillis: 10000,
 });
