@@ -1,0 +1,33 @@
+{
+  "name": "sureflight-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.0.0" },
+  "scripts": {
+    "dev": "node --watch app.js",
+    "start": "node app.js",
+    "db:migrate": "node db/migrate.js",
+    "test": "node --test",
+    "check": "node --check app.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^4.2.1",
+    "pdfkit": "^0.17.2",
+    "pg": "^8.16.3",
+    "socket.io": "^4.8.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "pg-mem": "^3.0.5",
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.1.4"
+  }
+}

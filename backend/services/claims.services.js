@@ -1,0 +1,149 @@
+import { randomUUID } from "node:crypto";
+import { db } from "../db/config.db.js";
+import {
+    listClaimsByUserDAL,
+    findClaimByIdDAL,
+    findClaimByTrackedFlightIdDAL,
+    insertClaimDAL,
+    updateClaimPaidDAL,
+    createClaimDAL,
+} from "../DAL/claim.DAL.js";
+import { createFlightDAL } from "../DAL/flight.DAL.js";
+import { createTrackedFlightDAL } from "../DAL/trackedFlight.DAL.js";
+import { createUserDAL } from "../DAL/user.DAL.js";
+import { notFound } from "../utils/error.js";
+import { generateClaimPdf } from "../utils/pdfGenerator.js";
+import { evaluateCompensation } from "./ruleEngine.service.js";
+import { createMockPaymentGateway } from "./paymentGateway.service.js";
+import { appEvents } from "../utils/events.js";
+
+export function publicClaim(claim) {
+    const { pdfBuffer: _pdf, ...safe } = claim;
+    return safe;
+}
+
+export async function listClaimsService(userId, customDb = db) {
+    const userClaims = await listClaimsByUserDAL(userId, customDb);
+    return userClaims.map(publicClaim);
+}
+
+export async function getClaimByIdService(userId, id, customDb = db) {
+    const claim = await findClaimByIdDAL(id, customDb);
+    if (!claim || claim.userId !== userId)
+        throw notFound("Claim not found");
+    return publicClaim(claim);
+}
+
+export async function getClaimPdfService(userId, id, customDb = db) {
+    const claim = await findClaimByIdDAL(id, customDb);
+    if (!claim || claim.userId !== userId)
+        throw notFound("Claim not found");
+    if (!claim.pdfBuffer) {
+        throw notFound("Claim package is not ready");
+    }
+    return {
+        buffer: Buffer.from(claim.pdfBuffer),
+        fileName: `SureFlight-${id}.pdf`,
+    };
+}
+
+export async function processFlightClaimsInTransaction(
+    tx,
+    flightId,
+    {
+        paymentGateway = createMockPaymentGateway(),
+        pdfGenerator = generateClaimPdf,
+    } = {}
+) {
+    const flight = await createFlightDAL(tx).findById(flightId, {
+        forUpdate: true,
+    });
+    if (!flight) {
+        throw notFound("Flight not found");
+    }
+    const decision = evaluateCompensation(flight);
+    if (!decision.eligible) {
+        return [];
+    }
+    const claimDAL = createClaimDAL(tx);
+    const registrations =
+        await createTrackedFlightDAL(tx).listByFlight(flightId);
+    const result = [];
+    for (const tracked of registrations) {
+        let claim = await claimDAL.findByTrackedFlightId(tracked.id);
+        if (claim?.status === "PAID") continue;
+        if (!claim)
+            claim = await claimDAL.create({
+                id: randomUUID(),
+                userId: tracked.userId,
+                trackedFlightId: tracked.id,
+                flightId,
+                amountIls: decision.amountIls,
+            });
+        const passenger = await createUserDAL(tx).findById(tracked.userId);
+        const pdfBuffer = await pdfGenerator({
+            claim,
+            flight,
+            passenger,
+            pnr: tracked.pnr,
+            reason: decision.reason,
+        });
+        const receipt = await paymentGateway.pay({
+            idempotencyKey: `claim:${tracked.id}`,
+            amountIls: claim.amountIls,
+            userId: tracked.userId,
+        });
+        if (receipt.status !== "PAID" || !receipt.transactionId)
+            throw new Error("Mock payment was not completed");
+        const paid = await claimDAL.updatePaid(claim.id, {
+            mockTransactionId: receipt.transactionId,
+            pdfBuffer,
+            paidAt: new Date().toISOString(),
+        });
+        result.push(publicClaim(paid));
+    }
+    return result;
+}
+
+export async function processFlightClaimsService(
+    flightId,
+    { db: customDb = db, events = appEvents, paymentGateway, pdfGenerator } = {}
+) {
+    const paidClaims = await customDb.transaction((tx) =>
+        processFlightClaimsInTransaction(tx, flightId, { paymentGateway, pdfGenerator })
+    );
+    if (events) {
+        for (const claim of paidClaims)
+            events.emit("claim:approved", { userId: claim.userId, claim });
+    }
+    return paidClaims;
+}
+
+export function createClaimsService({
+    db: customDb = db,
+    events,
+    paymentGateway = createMockPaymentGateway(),
+    pdfGenerator = generateClaimPdf,
+} = {}) {
+    const claims = createClaimDAL(customDb);
+    async function getOwned(userId, id) {
+        const claim = await claims.findById(id);
+        if (!claim || claim.userId !== userId)
+            throw notFound("Claim not found");
+        return claim;
+    }
+    const publishApprovals = (paidClaims) => {
+        for (const claim of paidClaims)
+            events?.emit("claim:approved", { userId: claim.userId, claim });
+    };
+    return {
+        processFlightInTransaction: (tx, flightId) =>
+            processFlightClaimsInTransaction(tx, flightId, { paymentGateway, pdfGenerator }),
+        publishApprovals,
+        list: (userId) => listClaimsService(userId, customDb),
+        getById: (userId, id) => getClaimByIdService(userId, id, customDb),
+        getPdf: (userId, id) => getClaimPdfService(userId, id, customDb),
+        processFlight: (flightId) =>
+            processFlightClaimsService(flightId, { db: customDb, events, paymentGateway, pdfGenerator }),
+    };
+}
