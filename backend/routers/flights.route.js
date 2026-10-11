@@ -11,6 +11,20 @@ import { idParamsSchema, statusSchema } from "../validation/flights.valid.js";
 import { AppError } from "../utils/error.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
+function requireMockProvider(_req, _res, next) {
+    const providerName = process.env.FLIGHT_PROVIDER ?? "mock";
+    if (providerName !== "mock") {
+        return next(
+            new AppError(
+                403,
+                "MOCK_ONLY",
+                "Manual status updates are available only with the mock provider."
+            )
+        );
+    }
+    next();
+}
+
 const router = Router();
 router.use(authMiddleware);
 router.get("/", listFlightsController);
@@ -18,6 +32,7 @@ router.get("/:id", validate(idParamsSchema, "params"), getFlightByIdController);
 router.patch(
     "/:id/status",
     requireRole("ADMIN"),
+    requireMockProvider,
     validate(idParamsSchema, "params"),
     validate(statusSchema),
     updateFlightStatusController
@@ -27,13 +42,14 @@ export default router;
 
 export function createFlightsRouter(service, { providerName = "mock" } = {}) {
     const r = Router();
+    r.use(authMiddleware);
     const controller = createFlightsController(service);
     r.get("/", controller.list);
     r.get("/:id", validate(idParamsSchema, "params"), controller.get);
     r.patch(
         "/:id/status",
         requireRole("ADMIN"),
-        function requireMockProvider(_req, _res, next) {
+        function checkMockProvider(_req, _res, next) {
             if (providerName !== "mock") {
                 return next(
                     new AppError(
