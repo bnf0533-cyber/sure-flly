@@ -25,6 +25,7 @@ import { appEvents } from "./utils/events.js";
 // Background Flight Tracker
 import { createFlightTracker } from "./services/flightTracker.service.js";
 import { createMockFlightProvider } from "./services/flightProvider.service.js";
+import { createAviationstackProvider } from "./services/aviationstack.service.js";
 import { createFlightsService } from "./services/flights.services.js";
 
 const PORT = process.env.PORT || 4000;
@@ -82,12 +83,23 @@ appEvents.on("claim:approved", ({ userId, claim }) => {
     io.to(`user:${userId}`).emit("CLAIM_APPROVED", publicClaim);
 });
 
+// Choose the provider in .env. The tracker stays the same.
+const providerName = process.env.NODE_TEST_CONTEXT ? "mock" : (process.env.FLIGHT_PROVIDER || "mock");
+let provider;
+if (providerName === "aviationstack") {
+    provider = createAviationstackProvider({ apiKey: process.env.AVIATIONSTACK_API_KEY });
+} else if (providerName === "mock") {
+    provider = createMockFlightProvider();
+} else {
+    throw new Error("FLIGHT_PROVIDER must be mock or aviationstack");
+}
+
 // Flight Tracker background cron
 const flightsService = createFlightsService({ db });
 const tracker = createFlightTracker({
     db,
     flightsService,
-    provider: createMockFlightProvider(),
+    provider,
 });
 
 if (process.env.TRACKER_ENABLED !== "false" && process.env.NODE_ENV !== "test") {

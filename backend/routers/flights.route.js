@@ -18,6 +18,12 @@ router.get("/:id", validate(idParamsSchema, "params"), getFlightByIdController);
 router.patch(
     "/:id/status",
     requireRole("ADMIN"),
+    function requireMockProvider(_req, _res, next) {
+        if ((process.env.FLIGHT_PROVIDER || "mock") !== "mock") {
+            return next(new AppError(403, "MOCK_ONLY", "Manual status updates are available only with the mock provider."));
+        }
+        next();
+    },
     validate(idParamsSchema, "params"),
     validate(statusSchema),
     updateFlightStatusController
