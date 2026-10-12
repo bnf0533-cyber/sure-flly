@@ -12,7 +12,7 @@ const pool = new pg.Pool({
                 ? process.env.DB_SSL_REJECT_UNAUTHORIZED === "true"
                 : isProduction,
             ...(process.env.DB_CA_CERT ? { ca: process.env.DB_CA_CERT } : {}),
-          }
+            }
         : false,
     max: 10,
     connectionTimeoutMillis: 10000,

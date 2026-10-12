@@ -24,7 +24,10 @@ import { appEvents } from "./utils/events.js";
 
 // Background Flight Tracker
 import { createFlightTracker } from "./services/flightTracker.service.js";
-import { createMockFlightProvider } from "./services/flightProvider.service.js";
+import {
+    createMockFlightProvider,
+    createFlightProviderFromEnv,
+} from "./services/flightProvider.service.js";
 import { createFlightsService } from "./services/flights.services.js";
 
 const PORT = process.env.PORT || 4000;
@@ -87,7 +90,7 @@ const flightsService = createFlightsService({ db });
 const tracker = createFlightTracker({
     db,
     flightsService,
-    provider: createMockFlightProvider(),
+    provider: createFlightProviderFromEnv(),
 });
 
 if (process.env.TRACKER_ENABLED !== "false" && process.env.NODE_ENV !== "test") {
