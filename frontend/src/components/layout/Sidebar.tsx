@@ -12,6 +12,7 @@ import clsx from "clsx";
 import { useAuthStore } from "../../store/authStore";
 
 const navigation = [
+    { to: "/demo", label: "הדגמה חיה", icon: Plane },
     { to: "/", label: "סקירה כללית", icon: LayoutDashboard },
     { to: "/flights", label: "הטיסות שלי", icon: Plane },
     { to: "/claims", label: "תביעות", icon: FileCheck2 },

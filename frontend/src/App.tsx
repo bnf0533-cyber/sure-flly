@@ -12,6 +12,7 @@ import DashboardPage from "./pages/DashboardPage";
 import TrackedFlightListPage from "./pages/TrackedFlightListPage";
 import TrackedFlightFormPage from "./pages/TrackedFlightFormPage";
 import ClaimsListPage from "./pages/ClaimsListPage";
+import DemoPage from "./pages/DemoPage";
 import ProfilePage from "./pages/ProfilePage";
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
                             element={<TrackedFlightFormPage />}
                         />
                         <Route path="claims" element={<ClaimsListPage />} />
+                        <Route path="demo" element={<DemoPage />} />
                         <Route path="account" element={<ProfilePage />} />
                         <Route
                             path="*"

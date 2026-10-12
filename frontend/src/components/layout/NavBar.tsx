@@ -16,7 +16,7 @@ export function NavBar({ connected }: { connected: boolean }) {
                 ? "הטיסות שלי"
                 : pathname === "/claims"
                   ? "תביעות"
-                  : "חשבון";
+                  : pathname === "/demo" ? "הדגמה חיה" : "חשבון";
     return (
         <header className="flex h-[82px] items-center justify-between gap-4 border-b border-line bg-white px-5 sm:px-8 lg:px-10">
             <div className="hidden items-center gap-2.5 text-xs md:flex">
