@@ -26,7 +26,10 @@ export function createFlightTracker({
             );
             for (const flight of await flights.listActive()) {
                 try {
-                    const observation = await provider.getStatus(flight);
+                    // Retry unfinished claim processing without polling a terminal flight again.
+                    const observation = ["CANCELLED", "LANDED"].includes(flight.status)
+                        ? { status: flight.status, delayMinutes: flight.delayMinutes }
+                        : await provider.getStatus(flight);
                     await flightsService.updateStatus(flight.id, observation);
                     checked += 1;
                 } catch (error) {

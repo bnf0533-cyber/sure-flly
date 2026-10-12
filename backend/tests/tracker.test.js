@@ -119,3 +119,32 @@ test("mock provider lands flights after their delayed estimated arrival", async 
         "CANCELLED"
     );
 });
+
+test("terminal flights retry failed claims without another API request", async (t) => {
+    const db = await createDatabase({ mode: "memory" });
+    t.after(() => db.close());
+    await db.migrate();
+    const dal = createFlightDAL(db);
+    const flight = await dal.createOrFind({ ...flightInput(-1, "LY104"), trackingStatus: "ACTIVE_TRACKING" });
+    await dal.updateStatus(flight.id, { status: "LANDED", delayMinutes: 480 });
+    let calls = 0;
+    let attempts = 0;
+    const tracker = createFlightTracker({ db, now: () => time,
+        provider: { async getStatus() { calls++; throw new Error("API unavailable"); } },
+        flightsService: { async updateStatus(id, status) {
+            attempts++;
+            assert.deepEqual(status, { status: "LANDED", delayMinutes: 480 });
+            if (attempts === 1) throw new Error("Temporary claims failure");
+            await dal.updateTrackingStatus(id, "COMPLETED");
+        } }, logger: { error() {} },
+    });
+    assert.equal((await tracker.tick()).failed, 1);
+    assert.equal((await tracker.tick()).checked, 1);
+    assert.equal((await tracker.tick()).checked, 0);
+    assert.equal(calls, 0);
+});
+test("default database refuses test queries instead of contacting Supabase", async () => {
+    const { db } = await import("../db/config.db.js");
+    assert.throws(() => db.query("SELECT 1"), /isolated memory database/);
+    await assert.rejects(db.transaction(async () => {}), /isolated memory database/);
+});

@@ -15,7 +15,7 @@ pool.on("error", (error) => {
 });
 
 // chack the connection 
-try {
+if (!process.env.NODE_TEST_CONTEXT) try {
     const client = await pool.connect();
     console.log("connected to postgres database successfully!");
     // dont catch connect for nothing
@@ -28,8 +28,12 @@ try {
 
 export const db = {
   // the will connection
-    query: (text, params) => pool.query(text, params),
+    query: (text, params) => {
+        if (process.env.NODE_TEST_CONTEXT) throw new Error("Tests must use their isolated memory database");
+        return pool.query(text, params);
+    },
     async transaction(callback) {
+        if (process.env.NODE_TEST_CONTEXT) throw new Error("Tests must use their isolated memory database");
         const client = await pool.connect();
         try {
             await client.query("BEGIN");
@@ -51,7 +55,12 @@ export const db = {
     close: () => pool.end(),
 };
 
-export async function createDatabase() {
+export async function createDatabase({ mode } = {}) {
+    if (mode === "memory") {
+        if (!process.env.NODE_TEST_CONTEXT) throw new Error("Memory database is for tests only");
+        const { createDatabase: createTestDatabase } = await import("../tests/memory.helper.js");
+        return createTestDatabase({ mode: "memory" });
+    }
     return db;
 }
 

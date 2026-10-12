@@ -10,13 +10,14 @@ import "./db/config.db.js";
 import { db } from "./db/config.db.js";
 
 // Routers
-import authRouter from "./routers/auth.route.js";
-import usersRouter from "./routers/users.route.js";
-import flightsRouter from "./routers/flights.route.js";
-import trackedFlightsRouter from "./routers/trackedFlights.route.js";
-import claimsRouter from "./routers/claims.route.js";
+import authRouter, { createAuthRouter } from "./routers/auth.route.js";
+import usersRouter, { createUsersRouter } from "./routers/users.route.js";
+import flightsRouter, { createFlightsRouter } from "./routers/flights.route.js";
+import trackedFlightsRouter, { createTrackedFlightsRouter } from "./routers/trackedFlights.route.js";
+import claimsRouter, { createClaimsRouter } from "./routers/claims.route.js";
 
 // Middleware & Utilities
+import { createAuthMiddleware } from "./middleware/auth.middleware.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { verifyToken } from "./utils/token.js";
 import { getUserById } from "./DAL/user.DAL.js";
@@ -49,39 +50,46 @@ app.use("/api/flights", flightsRouter);
 app.use("/api/trackedFlights", trackedFlightsRouter);
 app.use("/api/claims", claimsRouter);
 
+
 // Error Handling
 app.use(errorHandler);
 
 // HTTP & Socket.io Server
 export const server = createServer(app);
-export const io = new Server(server, {
-    cors: { origin: CLIENT_ORIGIN },
-});
+export const io = attachRealtime(server);
 
-// Socket Authentication
-io.use(async (socket, next) => {
-    try {
-        const token = socket.handshake.auth?.token;
-        if (!token) return next(new Error("Unauthorized"));
-        const payload = verifyToken(token, process.env.JWT_SECRET);
-        socket.data.user = await getUserById(payload.sub);
-        next();
-    } catch {
-        next(new Error("Unauthorized"));
-    }
-});
-
-io.on("connection", (socket) => {
-    if (socket.data.user?.id) {
-        socket.join(`user:${socket.data.user.id}`);
-    }
-});
-
-// Listen for claim approvals to push to socket in real-time
-appEvents.on("claim:approved", ({ userId, claim }) => {
-    const { pdfBuffer: _pdf, ...publicClaim } = claim;
-    io.to(`user:${userId}`).emit("CLAIM_APPROVED", publicClaim);
-});
+export function attachRealtime(httpServer, {
+    jwtSecret = process.env.JWT_SECRET,
+    clientOrigin = CLIENT_ORIGIN,
+    authService = { getMe: getUserById },
+    events = appEvents,
+} = {}) {
+    const socketServer = new Server(httpServer, { cors: { origin: clientOrigin } });
+    socketServer.use(async (socket, next) => {
+        try {
+            const payload = verifyToken(socket.handshake.auth?.token, jwtSecret);
+            const user = await authService.getMe(payload.sub);
+            if (!user?.id) throw new Error("Unknown user");
+            socket.data.user = user;
+            socket.data.expiresAt = payload.exp * 1000;
+            next();
+        } catch { next(new Error("Unauthorized")); }
+    });
+    socketServer.on("connection", (socket) => {
+        // Use the same room name as the claim notification below.
+        socket.join("user:" + socket.data.user.id);
+        const timer = setTimeout(() => socket.disconnect(true), Math.max(0, socket.data.expiresAt - Date.now()));
+        timer.unref();
+        socket.once("disconnect", () => clearTimeout(timer));
+    });
+    const notify = ({ userId, claim }) => {
+        const { pdfBuffer, ...publicClaim } = claim;
+        socketServer.to("user:" + userId).emit("CLAIM_APPROVED", publicClaim);
+    };
+    events.on("claim:approved", notify);
+    socketServer.engine.on("close", () => events.off("claim:approved", notify));
+    return socketServer;
+}
 
 // Choose the provider in .env. The tracker stays the same.
 const providerName = process.env.NODE_TEST_CONTEXT ? "mock" : (process.env.FLIGHT_PROVIDER || "mock");
@@ -102,21 +110,46 @@ const tracker = createFlightTracker({
     provider,
 });
 
-if (process.env.TRACKER_ENABLED !== "false" && process.env.NODE_ENV !== "test") {
-    tracker.start();
+// Build a separate app when tests supply isolated services.
+export function createApp({ db: customDb, services, jwtSecret, clientOrigin = CLIENT_ORIGIN, providerName = "mock" } = {}) {
+    if (!services) return app;
+    const testApp = express();
+    testApp.use(helmet());
+    testApp.use(cors({ origin: clientOrigin }));
+    testApp.use(express.json());
+    const authenticate = createAuthMiddleware({ jwtSecret, authService: services.auth });
+    testApp.use("/api/auth", createAuthRouter({ service: services.auth, authMiddleware: authenticate }));
+    testApp.use("/api/users", authenticate, createUsersRouter(services.users));
+    testApp.use("/api/flights", authenticate, createFlightsRouter(services.flights, { providerName }));
+    testApp.use("/api/trackedFlights", authenticate, createTrackedFlightsRouter(services.trackedFlights));
+    testApp.use("/api/claims", authenticate, createClaimsRouter(services.claims));
+    testApp.use(errorHandler);
+    return testApp;
 }
 
-// Helper exports for compatibility
-export function createApp() {
-    return app;
-}
-export function attachRealtime() {
-    return io;
+// Release the listener and database when stopping development.
+let stopping = false;
+async function stopServer() {
+    if (stopping) return;
+    stopping = true;
+    tracker.stop();
+    await new Promise((resolve) => io.close(resolve));
+    await db.close();
 }
 
 // Start Server
-if (process.env.NODE_ENV !== "test") {
+if (process.env.NODE_ENV !== "test" && !process.env.NODE_TEST_CONTEXT) {
+    process.once("SIGINT", () => stopServer().catch(console.error));
+    process.once("SIGTERM", () => stopServer().catch(console.error));
+    server.on("error", (error) => {
+        console.error(error.code === "EADDRINUSE"
+            ? "Port " + PORT + " is already in use. Stop the previous backend before restarting."
+            : "Server failed: " + error.message);
+        process.exitCode = 1;
+        void stopServer().catch(console.error);
+    });
     server.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
+        if (process.env.TRACKER_ENABLED !== "false") tracker.start();
     });
 }

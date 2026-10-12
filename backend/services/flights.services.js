@@ -40,8 +40,7 @@ export async function updateFlightStatusService(
             throw notFound("Flight not found");
         }
         if (
-            ["CANCELLED", "LANDED"].includes(current.status) &&
-            current.status !== status
+            ["CANCELLED", "LANDED"].includes(current.status)
         ) {
             return current;
         }
