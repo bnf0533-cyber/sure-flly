@@ -58,9 +58,10 @@ export function ClaimRow({
             </div>
             <div className="text-right">
                 <p className="mb-1.5 text-base font-semibold">
-                    {currency(claim.amountIls)}
+                    {claim.status === "READY" ? "פנייה לחברת התעופה" : currency(claim.amountIls)}
                 </p>
                 <StatusBadge status={claim.status} />
+                {claim.status === "READY" && <p className="mt-2 text-xs text-muted">{{ NOT_QUEUED: "טרם הוכנס לתור", PENDING: "ממתין לשליחת מייל", SENDING: "שולח מייל", SENT: "נמסר לשרת הדואר", FAILED: "השליחה נכשלה", UNKNOWN: "יש לבדוק את השליחה לפני ניסיון חוזר" }[claim.emailStatus]}{claim.emailSentAt ? " · " + new Date(claim.emailSentAt).toLocaleString("he-IL") : ""}</p>}
             </div>
             <Button
                 variant="secondary"

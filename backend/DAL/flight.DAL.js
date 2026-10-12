@@ -81,7 +81,7 @@ export async function activateEligibleFlightsDAL(cutoff, customDb = db) {
 
 export async function listActiveFlightsDAL(customDb = db) {
     const result = await customDb.query(
-        "SELECT * FROM flights WHERE tracking_status = 'ACTIVE_TRACKING' ORDER BY scheduled_departure ASC"
+        "SELECT * FROM flights WHERE tracking_status = 'ACTIVE_TRACKING' AND is_demo = false ORDER BY scheduled_departure ASC"
     );
     return result.rows.map(mapFlight);
 }

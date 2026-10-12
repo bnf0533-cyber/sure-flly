@@ -1,3 +1,4 @@
+import { getAirlineGuide } from "./airlineGuides.service.js";
 import { randomUUID } from "node:crypto";
 import { db } from "../db/config.db.js";
 import {
@@ -12,7 +13,7 @@ import { createFlightDAL } from "../DAL/flight.DAL.js";
 import { createTrackedFlightDAL } from "../DAL/trackedFlight.DAL.js";
 import { createUserDAL } from "../DAL/user.DAL.js";
 import { notFound } from "../utils/error.js";
-import { generateClaimPdf } from "../utils/pdfGenerator.js";
+import { generateClaimPdf, PDF_VERSION } from "../utils/pdfGenerator.js";
 import { evaluateCompensation } from "./ruleEngine.service.js";
 import { createMockPaymentGateway } from "./paymentGateway.service.js";
 import { appEvents } from "../utils/events.js";
@@ -41,8 +42,17 @@ export async function getClaimPdfService(userId, id, customDb = db) {
     if (!claim.pdfBuffer) {
         throw notFound("Claim package is not ready");
     }
+    let buffer = Buffer.from(claim.pdfBuffer);
+    // Rebuild legacy documents only; claim and payment records stay the same.
+    if (!buffer.includes(Buffer.from(PDF_VERSION))) {
+        const passenger = await createUserDAL(customDb).findById(userId);
+        const tracked = await createTrackedFlightDAL(customDb).findById(claim.trackedFlightId);
+        buffer = await generateClaimPdf({ claim, flight: claim.flight, passenger, pnr: tracked.pnr,
+            reason: claim.flight.status === "CANCELLED" ? "CANCELLATION" : "DELAY_8_HOURS" });
+        await customDb.query("UPDATE claims SET pdf_buffer = decode($2, 'base64') WHERE id = $1", [claim.id, buffer.toString("base64")]);
+    }
     return {
-        buffer: Buffer.from(claim.pdfBuffer),
+        buffer,
         fileName: `SureFlight-${id}.pdf`,
     };
 }
@@ -53,6 +63,7 @@ export async function processFlightClaimsInTransaction(
     {
         paymentGateway = createMockPaymentGateway(),
         pdfGenerator = generateClaimPdf,
+        liveMode = !process.env.NODE_TEST_CONTEXT && process.env.FLIGHT_PROVIDER === "aviationstack",
     } = {}
 ) {
     const flight = await createFlightDAL(tx).findById(flightId, {
@@ -61,7 +72,12 @@ export async function processFlightClaimsInTransaction(
     if (!flight) {
         throw notFound("Flight not found");
     }
-    const decision = evaluateCompensation(flight);
+    // Real flights produce an information package, never a simulated payment.
+    const live = !flight.isDemo && liveMode;
+    const decision = live
+        ? { eligible: !!getAirlineGuide(flight) && (flight.status === "CANCELLED" || flight.delayMinutes > 0), amountIls: 0,
+            reason: flight.status === "CANCELLED" ? "CANCELLATION" : "DELAY_REPORTED" }
+        : evaluateCompensation(flight);
     if (!decision.eligible) {
         return [];
     }
@@ -71,7 +87,7 @@ export async function processFlightClaimsInTransaction(
     const result = [];
     for (const tracked of registrations) {
         let claim = await claimDAL.findByTrackedFlightId(tracked.id);
-        if (claim?.status === "PAID") continue;
+        if (claim?.status === "PAID" || claim?.status === "READY") continue;
         if (!claim)
             claim = await claimDAL.create({
                 id: randomUUID(),
@@ -88,6 +104,12 @@ export async function processFlightClaimsInTransaction(
             pnr: tracked.pnr,
             reason: decision.reason,
         });
+        if (live) {
+            await tx.query("UPDATE claims SET status = 'READY', pdf_buffer = decode($2, 'base64'), email_status = 'PENDING', email_to = $3, email_updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+                [claim.id, pdfBuffer.toString("base64"), passenger.email]);
+            result.push(publicClaim(await claimDAL.findById(claim.id)));
+            continue;
+        }
         const receipt = await paymentGateway.pay({
             idempotencyKey: `claim:${tracked.id}`,
             amountIls: claim.amountIls,

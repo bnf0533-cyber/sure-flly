@@ -22,6 +22,7 @@ export function mapFlight(row) {
     const flight = {
         id: row.id,
         flightNumber: row.flight_number,
+        isDemo: row.is_demo === true,
         airline: row.airline,
         departureAirport: row.departure_airport,
         arrivalAirport: row.arrival_airport,
@@ -67,6 +68,10 @@ export function mapClaim(row) {
         flightId: row.flight_id,
         amountIls: row.amount_ils,
         status: row.claim_status,
+        emailStatus: row.email_status,
+        emailSentAt: timestamp(row.email_sent_at),
+        emailError: row.email_error,
+        emailAttempts: row.email_attempts,
         mockTransactionId: row.mock_transaction_id,
         pdfBuffer: row.pdf_buffer,
         createdAt: timestamp(row.claim_created_at),

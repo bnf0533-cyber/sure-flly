@@ -45,8 +45,8 @@ CREATE TABLE IF NOT EXISTS claims (
   user_id UUID NOT NULL REFERENCES users(id),
   tracked_flight_id UUID NOT NULL UNIQUE REFERENCES tracked_flights(id),
   flight_id UUID NOT NULL REFERENCES flights(id),
-  amount_ils INTEGER NOT NULL CHECK (amount_ils IN (1530, 2450, 3670)),
-  status VARCHAR(15) NOT NULL DEFAULT 'PROCESSING' CHECK (status IN ('PROCESSING', 'PAID')),
+  amount_ils INTEGER NOT NULL CONSTRAINT claims_amount_ils_check CHECK (amount_ils >= 0),
+  status VARCHAR(15) NOT NULL DEFAULT 'PROCESSING' CONSTRAINT claims_status_check CHECK (status IN ('PROCESSING', 'PAID', 'READY')),
   pdf_buffer BYTEA,
   mock_transaction_id VARCHAR(100) UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -57,3 +57,18 @@ CREATE INDEX IF NOT EXISTS flights_tracking_departure_idx ON flights(tracking_st
 CREATE INDEX IF NOT EXISTS tracked_flights_user_idx ON tracked_flights(user_id);
 CREATE INDEX IF NOT EXISTS tracked_flights_flight_idx ON tracked_flights(flight_id);
 CREATE INDEX IF NOT EXISTS claims_user_idx ON claims(user_id);
+
+ALTER TABLE flights ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE claims DROP CONSTRAINT IF EXISTS claims_status_check;
+ALTER TABLE claims ADD CONSTRAINT claims_status_check CHECK (status IN ('PROCESSING', 'PAID', 'READY'));
+ALTER TABLE claims DROP CONSTRAINT IF EXISTS claims_amount_ils_check;
+ALTER TABLE claims ADD CONSTRAINT claims_amount_ils_check CHECK (amount_ils >= 0);
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_status VARCHAR(20) NOT NULL DEFAULT 'NOT_QUEUED';
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_to TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_updated_at TIMESTAMPTZ;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_next_attempt_at TIMESTAMPTZ;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_error TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_message_id TEXT;

@@ -710,3 +710,29 @@ test(
         assert.deepEqual(received.observer, []);
     }
 );
+
+test("demo POST and PATCH persist a claim, remain private and reject real flights", async (t) => {
+    const ctx = await fixture(t);
+    const alice = await ctx.register();
+    const bob = await ctx.register("other@example.test");
+    const demo = expectStatus(await ctx.api("/api/demo/flights", { method: "POST", token: alice.token }), 201).data;
+    assert.equal(demo.flight.isDemo, true);
+    const again = expectStatus(await ctx.api("/api/demo/flights", { method: "POST", token: alice.token }), 201).data;
+    assert.equal(again.id, demo.id);
+    const path = "/api/demo/flights/" + demo.id + "/status";
+    const body = { status: "DELAYED", delayMinutes: 480 };
+    expectStatus(await ctx.api(path, { method: "PATCH", token: bob.token, body }), 404);
+    expectStatus(await ctx.api(path, { method: "PATCH", token: alice.token, body: { ...body, delayMinutes: -1 } }), 400);
+    const updated = expectStatus(await ctx.api(path, { method: "PATCH", token: alice.token, body }), 200).data;
+    assert.equal(updated.flight.delayMinutes, 480);
+    const claims = await claimsFor(ctx, alice);
+    assert.equal(claims.length, 1);
+    assert.equal(claims[0].flight.isDemo, true);
+    assert.equal(claims[0].amountIls, 2450);
+    expectStatus(await ctx.api(path, { method: "PATCH", token: alice.token, body }), 200);
+    assert.equal((await claimsFor(ctx, alice)).length, 1);
+    const real = await track(ctx, alice, flightInput(), "REAL01");
+    expectStatus(await ctx.api("/api/demo/flights/"+real.id+"/status", { method: "PATCH", token: alice.token, body }), 403);
+    const { createFlightDAL } = await import("../DAL/flight.DAL.js");
+    assert.equal((await createFlightDAL(ctx.db).listActive()).some(flight => flight.id === demo.flightId), false);
+});

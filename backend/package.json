@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.0.0" },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "node --watch app.js",
     "start": "node app.js",
     "db:migrate": "node db/migrate.js",
     "test": "node --test",
-    "check": "node --check app.js"
+    "check": "node --check app.js",
+    "mail:test": "node scripts/send-sample-email.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -20,6 +23,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
+    "nodemailer": "^10.1.0",
     "pdfkit": "^0.17.2",
     "pg": "^8.16.3",
     "socket.io": "^4.8.1",

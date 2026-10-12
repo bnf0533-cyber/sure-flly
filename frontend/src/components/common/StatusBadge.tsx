@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import type { FlightStatus, TrackingStatus } from "../../types/flights.types";
 
-type Status = FlightStatus | TrackingStatus | "PAID" | "PROCESSING";
+type Status = FlightStatus | TrackingStatus | "PAID" | "PROCESSING" | "READY";
 const labels: Record<Status, string> = {
     SCHEDULED: "מתוכנן",
     DELAYED: "מעוכב",
@@ -11,6 +11,7 @@ const labels: Record<Status, string> = {
     ACTIVE_TRACKING: "מעקב חי",
     COMPLETED: "מעקב הושלם",
     PAID: "תשלום מדומה הושלם",
+    READY: "המסמכים מוכנים",
     PROCESSING: "בטיפול",
 };
 

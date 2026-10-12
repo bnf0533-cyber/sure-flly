@@ -43,8 +43,8 @@ export function useWebSocket(): boolean {
                 seen.add(claim.id);
                 useNotificationStore.getState().add({
                     type: "success",
-                    title: "Your claim is approved",
-                    message: `A mock payout of ₪${Number(claim.amountIls).toLocaleString()} is ready. Your claim PDF is available under Claims.`,
+                    title: claim.status === "READY" ? "המסמכים שלך מוכנים" : "הדגמת התביעה הושלמה",
+                    message: claim.status === "READY" ? "ה-PDF זמין במסך התביעות. שם אפשר לבדוק את מצב שליחת המייל." : `A mock payout of ₪${Number(claim.amountIls).toLocaleString()} is ready. Your claim PDF is available under Claims.`,
                 });
             }
         });

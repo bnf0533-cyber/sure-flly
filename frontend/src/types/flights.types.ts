@@ -15,6 +15,7 @@ export interface FlightInput {
 }
 
 export interface Flight extends FlightInput {
+    isDemo: boolean;
     id: string;
     distanceKm: number;
     trackingStatus: TrackingStatus;
