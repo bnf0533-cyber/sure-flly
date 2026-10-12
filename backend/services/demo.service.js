@@ -7,9 +7,12 @@ import { AppError } from "../utils/error.js";
 export async function createDemoFlight(db, userId) {
     return db.transaction(async (tx) => {
         const existing = await tx.query("SELECT t.id FROM tracked_flights t JOIN flights f ON f.id = t.flight_id WHERE t.user_id = $1 AND f.is_demo = true ORDER BY t.created_at DESC LIMIT 1", [userId]);
-        if (existing.rows[0]) return createTrackedFlightDAL(tx).findById(existing.rows[0].id);
+        if (existing.rows[0]) {
+            await tx.query("UPDATE flights SET flight_number = 'LY315', airline = 'אל על' WHERE id = (SELECT flight_id FROM tracked_flights WHERE id = $1)", [existing.rows[0].id]);
+            return createTrackedFlightDAL(tx).findById(existing.rows[0].id);
+        }
         const flight = await createFlightDAL(tx).createOrFind({
-            id: randomUUID(), flightNumber: "DEMO315", airline: "טיסת הדגמה — לא טיסה אמיתית",
+            id: randomUUID(), flightNumber: "LY315", airline: "אל על",
             departureAirport: "TLV", arrivalAirport: "LHR",
             departureLat: 32.0114, departureLon: 34.8867, arrivalLat: 51.47, arrivalLon: -0.4543,
             scheduledDeparture: new Date(Date.now()+3600000).toISOString(),
