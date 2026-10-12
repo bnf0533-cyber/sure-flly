@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { createMailSender } from '../services/mail.service.js';
 import { buildAirlineMessage } from '../services/airlineGuides.service.js';
 import { generateClaimPdf } from '../utils/pdfGenerator.js';
-const recipient = process.env.SMTP_TEST_TO;
-if (recipient !== 'chaim05041056@gmail.com') throw new Error('Test recipient must be the authorized sender address');
+const recipient = process.env.SMTP_TEST_TO || process.env.SMTP_USER;
+if (!recipient) throw new Error('Set SMTP_TEST_TO or SMTP_USER in backend/.env');
 const airline = process.argv[2] === 'arkia' ? 'IZ' : 'LY';
 const flight = { flightNumber: airline+'315', airline: airline==='LY'?'אל על':'ארקיע', isDemo: false,
     departureAirport:'TLV',arrivalAirport:'LHR',scheduledDeparture:new Date().toISOString(),
