@@ -1,4 +1,8 @@
 import PDFDocument from "pdfkit";
+import { existsSync } from "node:fs";
+
+export const PDF_VERSION = "SureFlight-Unicode-v2";
+const unicodeFont = process.env.PDF_FONT_PATH || "C:/Windows/Fonts/arial.ttf";
 
 /** Produce the package in memory so its bytes commit atomically with its claim. */
 export function generateClaimPdf({ claim, flight, passenger, pnr, reason }) {
@@ -6,8 +10,13 @@ export function generateClaimPdf({ claim, flight, passenger, pnr, reason }) {
         const doc = new PDFDocument({
             size: "A4",
             margin: 52,
-            info: { Title: "SureFlight claim package", Author: "SureFlight" },
+            info: { Title: "SureFlight claim package", Author: "SureFlight", Subject: PDF_VERSION },
         });
+        if (!existsSync(unicodeFont)) {
+            reject(new Error("Set PDF_FONT_PATH to a TrueType font supporting Hebrew"));
+            return;
+        }
+        doc.registerFont("Unicode", unicodeFont);
         const chunks = [];
         doc.on("data", (chunk) => chunks.push(chunk));
         doc.on("error", reject);
@@ -24,7 +33,8 @@ export function generateClaimPdf({ claim, flight, passenger, pnr, reason }) {
             ["Passenger", passenger.name],
             ["Email", passenger.email],
             ["Booking reference (PNR)", pnr],
-            ["Flight", `${flight.airline} / ${flight.flightNumber}`],
+            ["Airline", flight.airline],
+            ["Flight number", flight.flightNumber],
             ["Route", `${flight.departureAirport} to ${flight.arrivalAirport}`],
             [
                 "Scheduled departure (UTC)",
@@ -51,8 +61,16 @@ export function generateClaimPdf({ claim, flight, passenger, pnr, reason }) {
             ["Generated (UTC)", new Date(claim.createdAt).toISOString()],
         ];
         for (const [label, value] of rows) {
-            doc.font("Helvetica-Bold").text(`${label}: `, { continued: true });
-            doc.font("Helvetica").text(String(value)).moveDown(0.6);
+            const y = doc.y;
+            const text = String(value);
+            const hebrew = /[\u0590-\u05ff]/.test(text);
+            doc.font("Helvetica-Bold").fontSize(10).text(label, 52, y, { width: 165, lineBreak: false });
+            doc.font("Unicode").fontSize(11);
+            let size = 11;
+            while (doc.widthOfString(text, { features: [] }) > 310 && size > 7) doc.fontSize(--size);
+            doc.text(text, 225, y, { width: 318, align: hebrew ? "right" : "left", features: [], lineBreak: false });
+            doc.x = 52;
+            doc.y = y + 27;
         }
         doc.moveDown()
             .fontSize(10)

@@ -12,7 +12,7 @@ import { createFlightDAL } from "../DAL/flight.DAL.js";
 import { createTrackedFlightDAL } from "../DAL/trackedFlight.DAL.js";
 import { createUserDAL } from "../DAL/user.DAL.js";
 import { notFound } from "../utils/error.js";
-import { generateClaimPdf } from "../utils/pdfGenerator.js";
+import { generateClaimPdf, PDF_VERSION } from "../utils/pdfGenerator.js";
 import { evaluateCompensation } from "./ruleEngine.service.js";
 import { createMockPaymentGateway } from "./paymentGateway.service.js";
 import { appEvents } from "../utils/events.js";
@@ -41,8 +41,17 @@ export async function getClaimPdfService(userId, id, customDb = db) {
     if (!claim.pdfBuffer) {
         throw notFound("Claim package is not ready");
     }
+    let buffer = Buffer.from(claim.pdfBuffer);
+    // Rebuild legacy documents only; claim and payment records stay the same.
+    if (!buffer.includes(Buffer.from(PDF_VERSION))) {
+        const passenger = await createUserDAL(customDb).findById(userId);
+        const tracked = await createTrackedFlightDAL(customDb).findById(claim.trackedFlightId);
+        buffer = await generateClaimPdf({ claim, flight: claim.flight, passenger, pnr: tracked.pnr,
+            reason: claim.flight.status === "CANCELLED" ? "CANCELLATION" : "DELAY_8_HOURS" });
+        await customDb.query("UPDATE claims SET pdf_buffer = decode($2, 'base64') WHERE id = $1", [claim.id, buffer.toString("base64")]);
+    }
     return {
-        buffer: Buffer.from(claim.pdfBuffer),
+        buffer,
         fileName: `SureFlight-${id}.pdf`,
     };
 }
