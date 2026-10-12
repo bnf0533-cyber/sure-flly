@@ -22,6 +22,7 @@ export function mapFlight(row) {
     const flight = {
         id: row.id,
         flightNumber: row.flight_number,
+        isDemo: row.is_demo === true,
         airline: row.airline,
         departureAirport: row.departure_airport,
         arrivalAirport: row.arrival_airport,

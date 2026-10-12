@@ -57,3 +57,5 @@ CREATE INDEX IF NOT EXISTS flights_tracking_departure_idx ON flights(tracking_st
 CREATE INDEX IF NOT EXISTS tracked_flights_user_idx ON tracked_flights(user_id);
 CREATE INDEX IF NOT EXISTS tracked_flights_flight_idx ON tracked_flights(flight_id);
 CREATE INDEX IF NOT EXISTS claims_user_idx ON claims(user_id);
+
+ALTER TABLE flights ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;

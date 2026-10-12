@@ -56,6 +56,7 @@ export async function registerTrackedFlightService(
             status: "SCHEDULED",
             delayMinutes: 0,
         });
+        if (flight.isDemo) throw new AppError(400, "DEMO_FLIGHT", "Demo flights cannot be registered by other passengers");
         const routeKeys = [
             "departureAirport",
             "arrivalAirport",

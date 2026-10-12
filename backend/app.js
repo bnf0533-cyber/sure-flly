@@ -17,6 +17,8 @@ import trackedFlightsRouter, { createTrackedFlightsRouter } from "./routers/trac
 import claimsRouter, { createClaimsRouter } from "./routers/claims.route.js";
 
 // Middleware & Utilities
+import { createDemoRouter } from "./routers/demo.route.js";
+import { authMiddleware } from "./middleware/auth.middleware.js";
 import { createAuthMiddleware } from "./middleware/auth.middleware.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { verifyToken } from "./utils/token.js";
@@ -50,6 +52,7 @@ app.use("/api/flights", flightsRouter);
 app.use("/api/trackedFlights", trackedFlightsRouter);
 app.use("/api/claims", claimsRouter);
 
+app.use("/api/demo", authMiddleware, createDemoRouter({ db, flightsService: createFlightsService({ db }) }));
 
 // Error Handling
 app.use(errorHandler);
@@ -123,6 +126,7 @@ export function createApp({ db: customDb, services, jwtSecret, clientOrigin = CL
     testApp.use("/api/flights", authenticate, createFlightsRouter(services.flights, { providerName }));
     testApp.use("/api/trackedFlights", authenticate, createTrackedFlightsRouter(services.trackedFlights));
     testApp.use("/api/claims", authenticate, createClaimsRouter(services.claims));
+    testApp.use("/api/demo", authenticate, createDemoRouter({ db: customDb, flightsService: services.flights }));
     testApp.use(errorHandler);
     return testApp;
 }
