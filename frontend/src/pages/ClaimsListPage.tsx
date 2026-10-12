@@ -17,7 +17,7 @@ import { currency } from "../utils/format";
 
 export default function ClaimsListPage() {
     const { claims, loading, loaded, error, fetch } = useClaimStore();
-    const [filter, setFilter] = useState<"ALL" | "PAID" | "PROCESSING">("ALL");
+    const [filter, setFilter] = useState<"ALL" | "PAID" | "PROCESSING" | "READY">("ALL");
     const [search, setSearch] = useState("");
     const paid = claims.filter((claim) => claim.status === "PAID");
     const visible = claims
@@ -35,7 +35,7 @@ export default function ClaimsListPage() {
             <PageHeading
                 eyebrow="משיבוש לפתרון"
                 title="התביעות שלך"
-                description="חבילות התביעה שלך, עדכוני סטטוס ותשלומים מדומים."
+                description="מסמכי פנייה, מצב שליחת המייל והדגמות המסומנות בנפרד."
                 action={
                     <Button
                         variant="secondary"
@@ -100,6 +100,7 @@ export default function ClaimsListPage() {
                         {(
                             [
                                 { value: "ALL", label: "כל התביעות" },
+                                { value: "READY", label: "מסמכים מוכנים" },
                                 { value: "PAID", label: "שולם (מדומה)" },
                                 { value: "PROCESSING", label: "בטיפול" },
                             ] as const

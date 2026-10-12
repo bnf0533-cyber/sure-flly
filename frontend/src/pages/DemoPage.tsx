@@ -38,6 +38,7 @@ export default function DemoPage() {
     return <div dir="rtl" className="space-y-6 animate-rise">
         <PageHeading eyebrow="המערכת בפעולה" title="הדגמה חיה" description="כל לחיצה שולחת בקשה אמיתית לשרת. כאן אפשר לראות גם נתוני ספק אמיתיים וגם תרחיש פיצוי מבוקר." />
         <section className="card p-6 space-y-5">
+            <p className="rounded-xl bg-teal-50 p-4 text-sm leading-7">במעקב אמיתי בטיסות אל על (LY) וארקיע (IZ), שיבוש יוצר מסמכי פנייה עם הוראות ונוסח למילוי בטופס החברה. כאשר שליחת המייל מופעלת בשרת, המסמכים נשלחים לכתובת הנוסע. במסך התביעות מוצג מצב השליחה. הכפתורים של טיסת ההדגמה למטה ממשיכים להפעיל תרחיש מדומה ולא שולחים מייל ללקוח.</p>
             <h2 className="text-lg font-semibold">איך מדגימים את התהליך?</h2>
             <p className="text-sm leading-7 text-muted">הדפדפן שולח בקשה לבאקנד, הבאקנד בודק את המשתמש ומבצע את הפעולה, ואז מחזיר תשובה שמוצגת כאן. נתוני ההדגמה נשמרים ב־PostgreSQL שב־Supabase, ולכן הם יופיעו גם במסכי הטיסות והתביעות.</p>
             <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
