@@ -1,3 +1,4 @@
+import { createEmailWorker } from "./services/emailWorker.service.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -131,12 +132,15 @@ export function createApp({ db: customDb, services, jwtSecret, clientOrigin = CL
     return testApp;
 }
 
+const emailWorker = createEmailWorker({ db });
+
 // Release the listener and database when stopping development.
 let stopping = false;
 async function stopServer() {
     if (stopping) return;
     stopping = true;
     tracker.stop();
+    emailWorker.stop();
     await new Promise((resolve) => io.close(resolve));
     await db.close();
 }
@@ -155,5 +159,6 @@ if (process.env.NODE_ENV !== "test" && !process.env.NODE_TEST_CONTEXT) {
     server.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
         if (process.env.TRACKER_ENABLED !== "false") tracker.start();
+        emailWorker.start();
     });
 }

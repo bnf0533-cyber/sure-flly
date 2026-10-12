@@ -5,7 +5,7 @@ const selectClaim = (
     includePdf = false
 ) => `SELECT f.*, c.id AS claim_id, c.user_id, c.tracked_flight_id,
     c.flight_id, c.amount_ils, c.status AS claim_status, ${includePdf ? "c.pdf_buffer" : "NULL AS pdf_buffer"},
-    c.mock_transaction_id, c.created_at AS claim_created_at, c.paid_at
+    c.email_status, c.email_sent_at, c.email_error, c.email_attempts, c.mock_transaction_id, c.created_at AS claim_created_at, c.paid_at
     FROM claims c JOIN flights f ON f.id = c.flight_id`;
 
 export async function listClaimsByUserDAL(userId, customDb = db) {
