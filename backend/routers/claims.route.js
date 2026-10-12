@@ -4,6 +4,7 @@ import {
     listClaimsController,
     getClaimByIdController,
     getClaimPdfController,
+    autofillElAlClaimController,
 } from "../controllers/claims.controller.js";
 import { validate } from "../middleware/validate.middleware.js";
 import { claimParamsSchema } from "../validation/claims.valid.js";
@@ -14,6 +15,7 @@ router.use(authMiddleware);
 router.get("/", listClaimsController);
 router.get("/:id/pdf", validate(claimParamsSchema, "params"), getClaimPdfController);
 router.get("/:id", validate(claimParamsSchema, "params"), getClaimByIdController);
+router.post("/:id/autofill-elal", validate(claimParamsSchema, "params"), autofillElAlClaimController);
 
 export default router;
 
@@ -27,5 +29,6 @@ export function createClaimsRouter(service) {
         controller.pdf
     );
     r.get("/:id", validate(claimParamsSchema, "params"), controller.get);
+    r.post("/:id/autofill-elal", validate(claimParamsSchema, "params"), controller.autofillElAl);
     return r;
 }

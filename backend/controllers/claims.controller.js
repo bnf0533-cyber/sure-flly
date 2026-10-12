@@ -1,7 +1,18 @@
-import { listClaimsService, getClaimByIdService, getClaimPdfService } from "../services/claims.services.js";
+import { listClaimsService, getClaimByIdService, getClaimPdfService, autofillElAlClaimService } from "../services/claims.services.js";
 
 function publicClaim({ pdfBuffer: _pdf, ...claim }) {
     return claim;
+}
+
+export async function autofillElAlClaimController(req, res) {
+    try {
+        const result = await autofillElAlClaimService(req.user.id, req.params.id);
+        return res.json({ data: result });
+    } catch (error) {
+        return res.status(error.statusCode || error.status || 500).json({
+            error: { code: error.code || "AUTOFILL_ERROR", message: error.message },
+        });
+    }
 }
 
 export async function listClaimsController(req, res) {
@@ -73,6 +84,13 @@ export function createClaimsController(service) {
                 return res.send(buffer);
             }
             return getClaimPdfController(req, res);
+        },
+        async autofillElAl(req, res) {
+            if (service && service.autofillElAl) {
+                const result = await service.autofillElAl(req.user.id, req.params.id);
+                return res.json({ data: result });
+            }
+            return autofillElAlClaimController(req, res);
         },
     };
 }

@@ -21,4 +21,10 @@ export const claimsService = {
         // Keep the object URL alive long enough for the browser to begin downloading.
         window.setTimeout(() => URL.revokeObjectURL(url), 10000);
     },
+    async autofillElAl(claimId: string): Promise<{ success: boolean; message: string }> {
+        const response = await api.post<{ data: { success: boolean; message: string } }>(
+            `/claims/${encodeURIComponent(claimId)}/autofill-elal`
+        );
+        return response.data.data;
+    },
 };

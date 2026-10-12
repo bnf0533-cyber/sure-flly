@@ -17,6 +17,7 @@ import { generateClaimPdf, PDF_VERSION } from "../utils/pdfGenerator.js";
 import { evaluateCompensation } from "./ruleEngine.service.js";
 import { createMockPaymentGateway } from "./paymentGateway.service.js";
 import { appEvents } from "../utils/events.js";
+import { launchElAlAutoFill } from "./elalAutomation.service.js";
 
 export function publicClaim(claim) {
     const { pdfBuffer: _pdf, ...safe } = claim;
@@ -55,6 +56,24 @@ export async function getClaimPdfService(userId, id, customDb = db) {
         buffer,
         fileName: `SureFlight-${id}.pdf`,
     };
+}
+
+export async function autofillElAlClaimService(userId, id, customDb = db) {
+    const claim = await findClaimByIdDAL(id, customDb);
+    if (!claim || claim.userId !== userId)
+        throw notFound("Claim not found");
+
+    const passenger = await createUserDAL(customDb).findById(userId);
+    const tracked = await createTrackedFlightDAL(customDb).findById(claim.trackedFlightId);
+
+    const result = await launchElAlAutoFill({
+        passenger: passenger || { name: "נוסע", email: claim.emailTo || "" },
+        flight: claim.flight,
+        pnr: tracked?.pnr || "",
+        claim,
+    });
+
+    return result;
 }
 
 export async function processFlightClaimsInTransaction(
@@ -165,6 +184,7 @@ export function createClaimsService({
         list: (userId) => listClaimsService(userId, customDb),
         getById: (userId, id) => getClaimByIdService(userId, id, customDb),
         getPdf: (userId, id) => getClaimPdfService(userId, id, customDb),
+        autofillElAl: (userId, id) => autofillElAlClaimService(userId, id, customDb),
         processFlight: (flightId) =>
             processFlightClaimsService(flightId, { db: customDb, events, paymentGateway, pdfGenerator }),
     };

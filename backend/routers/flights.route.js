@@ -42,7 +42,6 @@ export default router;
 
 export function createFlightsRouter(service, { providerName = "mock" } = {}) {
     const r = Router();
-    r.use(authMiddleware);
     const controller = createFlightsController(service);
     r.get("/", controller.list);
     r.get("/:id", validate(idParamsSchema, "params"), controller.get);
