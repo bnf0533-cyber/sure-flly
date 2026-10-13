@@ -23,7 +23,7 @@ export const claimsService = {
     },
     async autofillElAl(claimId: string): Promise<{ success: boolean; message: string }> {
         const response = await api.post<{ data: { success: boolean; message: string } }>(
-            `/claims/${encodeURIComponent(claimId)}/autofill-elal`
+            `/claims/${encodeURIComponent(claimId)}/autofill-elal`, undefined, { timeout: 100000 }
         );
         return response.data.data;
     },
