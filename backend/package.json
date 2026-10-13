@@ -12,7 +12,8 @@
     "db:migrate": "node db/migrate.js",
     "test": "node --test",
     "check": "node --check app.js",
-    "mail:test": "node scripts/send-sample-email.js"
+    "mail:test": "node scripts/send-sample-email.js",
+    "elal:demo": "node scripts/run-elal-demo.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
