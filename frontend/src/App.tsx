@@ -50,7 +50,7 @@ export default function App() {
                             element={<TrackedFlightFormPage />}
                         />
                         <Route path="claims" element={<ClaimsListPage />} />
-                        <Route path="demo" element={<DemoPage />} />
+                        {import.meta.env.DEV && <Route path="demo" element={<DemoPage />} />}
                         <Route path="account" element={<ProfilePage />} />
                         <Route
                             path="*"

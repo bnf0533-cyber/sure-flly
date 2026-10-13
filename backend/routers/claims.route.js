@@ -1,3 +1,5 @@
+import { getClaimInstructionsService } from '../services/claims.services.js';
+import { productionOnlyOff } from '../middleware/security.middleware.js';
 import { Router } from "express";
 import {
     createClaimsController,
@@ -14,8 +16,9 @@ const router = Router();
 router.use(authMiddleware);
 router.get("/", listClaimsController);
 router.get("/:id/pdf", validate(claimParamsSchema, "params"), getClaimPdfController);
+router.get('/:id/instructions', validate(claimParamsSchema, 'params'), async (req,res) => res.json({data:await getClaimInstructionsService(req.user.id,req.params.id)}));
 router.get("/:id", validate(claimParamsSchema, "params"), getClaimByIdController);
-router.post("/:id/autofill-elal", validate(claimParamsSchema, "params"), autofillElAlClaimController);
+router.post("/:id/autofill-elal", productionOnlyOff, productionOnlyOff, validate(claimParamsSchema, "params"), autofillElAlClaimController);
 
 export default router;
 

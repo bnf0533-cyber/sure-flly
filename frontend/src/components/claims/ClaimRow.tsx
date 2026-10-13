@@ -15,6 +15,7 @@ export function ClaimRow({
     claim: Claim;
     detailed?: boolean;
 }) {
+    const [instructions, setInstructions] = useState<{url:string;subject:string;text:string;letter:string}|null>(null);
     const [downloading, setDownloading] = useState(false);
     const [autofilling, setAutofilling] = useState(false);
 
@@ -25,6 +26,12 @@ export function ClaimRow({
             claim.flight.airline.toLowerCase().includes("el al")
         ));
 
+    async function showInstructions() {
+        setAutofilling(true);
+        try { setInstructions(await claimsService.instructions(claim.id)); }
+        catch(error) {useNotificationStore.getState().add({type:'error',title:'לא ניתן לטעון את ההנחיות',message:errorMessage(error)});}
+        finally {setAutofilling(false);}
+    }
     async function autofillElAl() {
         setAutofilling(true);
         try {
@@ -96,8 +103,9 @@ export function ClaimRow({
                 <StatusBadge status={claim.status} />
                 {claim.status === "READY" && <p className="mt-2 text-xs text-muted">{{ NOT_QUEUED: "טרם הוכנס לתור", PENDING: "ממתין לשליחת מייל", SENDING: "שולח מייל", SENT: "נמסר לשרת הדואר", FAILED: "השליחה נכשלה", UNKNOWN: "יש לבדוק את השליחה לפני ניסיון חוזר" }[claim.emailStatus]}{claim.emailSentAt ? " · " + new Date(claim.emailSentAt).toLocaleString("he-IL") : ""}</p>}
             </div>
-            <div className="mr-auto flex items-center gap-2 sm:mr-2">
-                {isElAl && (
+            <div className="mr-auto flex flex-wrap items-center gap-2 sm:mr-2">
+                {(isElAl || claim.flight.flightNumber.startsWith('IZ')) && <Button variant="primary" loading={autofilling} onClick={()=>void showInstructions()}>הנחיות ונוסח לפנייה</Button>}
+                {isElAl && import.meta.env.DEV && (
                     <Button
                         variant="primary"
                         loading={autofilling}
@@ -120,6 +128,14 @@ export function ClaimRow({
                     PDF
                 </Button>
             </div>
+            {instructions && <section dir="rtl" className="w-full border-t border-line pt-4 space-y-3">
+                <h4 className="font-semibold">השלמת הפנייה לחברת התעופה</h4>
+                <p className="text-sm">בדוק את הפרטים מול הכרטיס, פתח את הטופס הרשמי והעתק את הנוסח. צרף את ה־PDF ומסמכי ההזמנה.</p>
+                <a href={instructions.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">פתח את הטופס הרשמי</a>
+                <label className="block text-sm">נוסח להעתקה<textarea readOnly value={instructions.text} rows={12} className="input mt-2" onFocus={event=>event.target.select()}/></label>
+                <Button variant="secondary" onClick={()=>void navigator.clipboard.writeText(instructions.text).then(()=>useNotificationStore.getState().add({type:'success',title:'הנוסח הועתק',message:'אפשר להדביק בטופס החברה.'})).catch(()=>useNotificationStore.getState().add({type:'info',title:'העתקה ידנית',message:'בחר את הטקסט והעתק באמצעות Ctrl+C.'}))}>העתק נוסח</Button>
+                <Button variant="ghost" onClick={()=>setInstructions(null)}>סגור</Button>
+            </section>}
         </article>
     );
 }

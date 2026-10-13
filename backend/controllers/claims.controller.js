@@ -4,40 +4,34 @@ function publicClaim({ pdfBuffer: _pdf, ...claim }) {
     return claim;
 }
 
-export async function autofillElAlClaimController(req, res) {
+export async function autofillElAlClaimController(req, res, next) {
     try {
         const result = await autofillElAlClaimService(req.user.id, req.params.id);
         return res.json({ data: result });
     } catch (error) {
-        return res.status(error.statusCode || error.status || 500).json({
-            error: { code: error.code || "AUTOFILL_ERROR", message: error.message },
-        });
+        return next(error);
     }
 }
 
-export async function listClaimsController(req, res) {
+export async function listClaimsController(req, res, next) {
     try {
         const claims = await listClaimsService(req.user.id);
         return res.json({ data: claims });
     } catch (error) {
-        return res.status(error.statusCode || error.status || 500).json({
-            error: { code: error.code || "CLAIMS_ERROR", message: error.message },
-        });
+        return next(error);
     }
 }
 
-export async function getClaimByIdController(req, res) {
+export async function getClaimByIdController(req, res, next) {
     try {
         const claim = await getClaimByIdService(req.user.id, req.params.id);
         return res.json({ data: claim });
     } catch (error) {
-        return res.status(error.statusCode || error.status || 500).json({
-            error: { code: error.code || "CLAIMS_ERROR", message: error.message },
-        });
+        return next(error);
     }
 }
 
-export async function getClaimPdfController(req, res) {
+export async function getClaimPdfController(req, res, next) {
     try {
         const result = await getClaimPdfService(req.user.id, req.params.id);
         const buffer = Buffer.isBuffer(result) ? result : result.buffer;
@@ -48,31 +42,29 @@ export async function getClaimPdfController(req, res) {
         });
         return res.send(buffer);
     } catch (error) {
-        return res.status(error.statusCode || error.status || 500).json({
-            error: { code: error.code || "CLAIMS_ERROR", message: error.message },
-        });
+        return next(error);
     }
 }
 
 export function createClaimsController(service) {
     return {
-        async list(req, res) {
+        async list(req, res, next) {
             if (service) {
                 const claims = await service.list(req.user.id);
                 const publicClaims = claims.map(publicClaim);
                 return res.json({ data: publicClaims });
             }
-            return listClaimsController(req, res);
+            return listClaimsController(req, res, next);
         },
-        async get(req, res) {
+        async get(req, res, next) {
             if (service) {
                 const claim = await service.getById(req.user.id, req.params.id);
                 const publicClaimData = publicClaim(claim);
                 return res.json({ data: publicClaimData });
             }
-            return getClaimByIdController(req, res);
+            return getClaimByIdController(req, res, next);
         },
-        async pdf(req, res) {
+        async pdf(req, res, next) {
             if (service) {
                 const result = await service.getPdf(req.user.id, req.params.id);
                 const buffer = Buffer.isBuffer(result) ? result : result.buffer;
@@ -83,14 +75,14 @@ export function createClaimsController(service) {
                 });
                 return res.send(buffer);
             }
-            return getClaimPdfController(req, res);
+            return getClaimPdfController(req, res, next);
         },
-        async autofillElAl(req, res) {
+        async autofillElAl(req, res, next) {
             if (service && service.autofillElAl) {
                 const result = await service.autofillElAl(req.user.id, req.params.id);
                 return res.json({ data: result });
             }
-            return autofillElAlClaimController(req, res);
+            return autofillElAlClaimController(req, res, next);
         },
     };
 }

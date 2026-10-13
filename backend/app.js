@@ -1,3 +1,9 @@
+import './config.js';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
+import rateLimit from 'express-rate-limit';
+import { createAuthLimiter, requireVerifiedEmail, productionOnlyOff } from './middleware/security.middleware.js';
+import { createVerificationRouter } from './routers/verification.route.js';
 import { createEmailWorker } from "./services/emailWorker.service.js";
 import express from "express";
 import cors from "cors";
@@ -39,7 +45,11 @@ export const app = express();
 app.disable("x-powered-by");
 app.use(helmet());
 app.use(cors({ origin: CLIENT_ORIGIN }));
-app.use(express.json());
+app.set('trust proxy', Number(process.env.TRUST_PROXY || 0));
+app.use(express.json({limit:'32kb'}));
+app.use('/api', (_req,res,next)=>{res.set('Cache-Control','no-store');next();});
+app.use('/api', rateLimit({windowMs:60000,limit:120,standardHeaders:'draft-8',legacyHeaders:false,message:{error:{code:'RATE_LIMITED',message:'Too many requests.'}}}));
+app.use('/api/auth', createAuthLimiter());
 
 // Health Check
 app.get("/health", (_req, res) => {
@@ -50,16 +60,29 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/flights", flightsRouter);
-app.use("/api/trackedFlights", trackedFlightsRouter);
+app.use('/api/verification', authMiddleware, createVerificationRouter(db));
+app.use('/api/trackedFlights', authMiddleware, (req,res,next)=>req.method==='POST' ? requireVerifiedEmail(req,res,next) : next(), trackedFlightsRouter);
 app.use("/api/claims", claimsRouter);
 
-app.use("/api/demo", authMiddleware, createDemoRouter({ db, flightsService: createFlightsService({ db }) }));
+app.use("/api/demo", productionOnlyOff, authMiddleware, createDemoRouter({ db, flightsService: createFlightsService({ db }) }));
 
-// Error Handling
+app.get('/ready', async (_req,res) => {
+    try { await db.query('SELECT email_status, email_text FROM claims LIMIT 0'); await db.query('SELECT email_verified FROM users LIMIT 0'); res.json({data:{status:'ready'}}); }
+    catch { res.status(503).json({error:{code:'NOT_READY',message:'Database unavailable or migrations required.'}}); }
+});
+app.use('/api', (_req,res)=>res.status(404).json({error:{code:'NOT_FOUND',message:'Endpoint not found.'}}));
+if (process.env.NODE_ENV === 'production') {
+    const dist = fileURLToPath(new URL('../frontend/dist/', import.meta.url));
+    if (!existsSync(dist+'index.html')) throw new Error('Build the frontend before starting production');
+    app.use(express.static(dist, {index:false, maxAge:0}));
+    app.get('/{*path}', (_req,res)=>res.sendFile(dist+'index.html'));
+}
 app.use(errorHandler);
 
 // HTTP & Socket.io Server
 export const server = createServer(app);
+server.requestTimeout = 30000;
+server.headersTimeout = 15000;
 export const io = attachRealtime(server);
 
 export function attachRealtime(httpServer, {
@@ -139,10 +162,11 @@ let stopping = false;
 async function stopServer() {
     if (stopping) return;
     stopping = true;
-    tracker.stop();
-    emailWorker.stop();
+    const deadline = setTimeout(()=>process.exit(1),30000); deadline.unref();
+    await Promise.all([tracker.stop(), emailWorker.stop()]);
     await new Promise((resolve) => io.close(resolve));
     await db.close();
+    clearTimeout(deadline);
 }
 
 // Start Server

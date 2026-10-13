@@ -11,6 +11,7 @@ export function mapUser(row) {
         email: row.email,
         role: row.role,
         passwordHash: row.password_hash,
+        emailVerified: row.email_verified === true,
     };
     return user;
 }

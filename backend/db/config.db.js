@@ -1,3 +1,4 @@
+import "../config.js";
 import pg from "pg";
 import "dotenv/config";
 import { readFile } from "node:fs/promises";
@@ -15,6 +16,8 @@ const pool = new pg.Pool({
             }
         : false,
     max: 10,
+    statement_timeout: 15000,
+    idle_in_transaction_session_timeout: 30000,
     connectionTimeoutMillis: 10000,
 });
 
@@ -58,7 +61,16 @@ export const db = {
     async migrate() {
         const schemaUrl = new URL("./schema.sql", import.meta.url);
         const sql = await readFile(schemaUrl, "utf-8");
-        await pool.query(sql);
+        const security = await readFile(new URL('./security.sql', import.meta.url), 'utf-8');
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            await client.query('SELECT pg_advisory_xact_lock(51734000)');
+            await client.query(sql);
+            await client.query(security);
+            await client.query('COMMIT');
+        } catch (error) { await client.query('ROLLBACK'); throw error; }
+        finally { client.release(); }
     },
     close: () => pool.end(),
 };

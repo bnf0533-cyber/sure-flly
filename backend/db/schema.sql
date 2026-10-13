@@ -72,3 +72,12 @@ ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_next_attempt_at TIMESTAMPTZ;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_error TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_message_id TEXT;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_requested_at TIMESTAMPTZ;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_subject TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_text TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS email_html TEXT;
+CREATE INDEX IF NOT EXISTS claims_email_queue_idx ON claims(email_status, email_next_attempt_at);

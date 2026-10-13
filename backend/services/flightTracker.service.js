@@ -11,6 +11,7 @@ export function createFlightTracker({
 }) {
     const flights = createFlightDAL(db);
     let running = false;
+    let active = Promise.resolve();
     let task;
     async function tick() {
         if (running) {
@@ -45,8 +46,9 @@ export function createFlightTracker({
             running = false;
         }
     }
+    const run = () => { if (running) return Promise.resolve({skipped:true,checked:0,failed:0}); active=tick(); return active; };
     return {
-        tick,
+        tick:run,
         start() {
             if (task) {
                 return;
@@ -54,19 +56,20 @@ export function createFlightTracker({
             task = cron.schedule(
                 "0 * * * *",
                 () =>
-                    tick().catch((error) =>
+                    run().catch((error) =>
                         logger.error("Tracker failed", error.message)
                     ),
                 { timezone: "UTC" }
             );
-            void tick().catch((error) =>
+            void run().catch((error) =>
                 logger.error("Initial tracker run failed", error.message)
             );
         },
-        stop() {
+        async stop() {
             task?.stop();
             task?.destroy();
             task = undefined;
+            await active;
         },
     };
 }

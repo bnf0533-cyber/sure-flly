@@ -8,8 +8,7 @@ export function Footer() {
                 יותר.
             </span>
             <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck size={12} /> הערכות ותשלומים מדומים · לא מועבר כסף
-                אמיתי
+                <ShieldCheck size={12} /> מידע והכנת מסמכים · פנייה לחברה נשלחת על ידך
             </span>
         </footer>
     );

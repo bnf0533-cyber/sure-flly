@@ -17,7 +17,7 @@ export async function seedDemo({ db, trackedFlightsService, flightsService }) {
         name: "Alex Morgan",
         email: "demo@sureflight.local",
         passwordHash: await hashPassword("SureFlight123!"),
-        role: "ADMIN",
+        role: "USER",
     });
     const departureBase = Math.ceil(Date.now() / 3_600_000) * 3_600_000;
     const routes = [

@@ -5,8 +5,8 @@ import { AppError } from "../utils/error.js";
 import { hashPassword, comparePassword } from "../utils/password.js";
 import { signToken } from "../utils/token.js";
 
-export function publicUser({ id, name, email, role }) {
-    const user = { id, name, email, role };
+export function publicUser({ id, name, email, role, emailVerified }) {
+    const user = { id, name, email, role, emailVerified: emailVerified === true };
     return user;
 }
 

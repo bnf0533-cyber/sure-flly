@@ -1,3 +1,4 @@
+import { EmailVerification } from '../EmailVerification';
 import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
@@ -25,6 +26,7 @@ export function AppLayout() {
                     id="main-content"
                     className="mx-auto max-w-[1440px] px-5 pb-24 pt-8 sm:px-8 md:pb-8 lg:px-10 lg:pt-9"
                 >
+                    <EmailVerification />
                     <Outlet />
                     <Footer />
                 </main>

@@ -14,7 +14,7 @@ export function createMailSender(env = process.env) {
         async send({ to, subject, text, html, pdf, id }) {
             const result = await transport.sendMail({ from: { name: "SureFlight", address: user }, to,
                 subject, text, html, messageId: "<sureflight-" + id + "@" + user.split("@")[1] + ">",
-                attachments: [{ filename: "SureFlight-" + id + ".pdf", content: pdf, contentType: "application/pdf" }] });
+                attachments: pdf ? [{ filename: "SureFlight-" + id + ".pdf", content: pdf, contentType: "application/pdf" }] : [] });
             if (!result.accepted?.length) throw Object.assign(new Error("Recipient rejected"), { code: "EENVELOPE" });
             return { messageId: result.messageId };
         },

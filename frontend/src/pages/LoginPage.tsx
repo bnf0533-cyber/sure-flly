@@ -209,7 +209,7 @@ export default function LoginPage() {
                             {isRegister ? "התחבר" : "צור חשבון"}
                         </Link>
                     </p>
-                    {!isRegister && (
+                    {!isRegister && import.meta.env.DEV && (
                         <div className="mt-8 rounded-xl border border-dashed border-slate-200 p-4">
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-xs font-medium">
@@ -234,7 +234,7 @@ export default function LoginPage() {
                     )}
                 </div>
                 <p className="mt-8 text-center text-[10px] leading-relaxed text-muted">
-                    SureFlight היא הדגמה של מעקב טיסות ואוטומציה של תביעות.
+                    SureFlight מרכזת עדכוני טיסות ומסמכי פנייה לחברת התעופה.
                     <br />
                     הערכות פועלות על פי כללים מוגדרים; אינן קביעות משפטיות.
                 </p>

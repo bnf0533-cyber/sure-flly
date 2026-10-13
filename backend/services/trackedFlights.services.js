@@ -41,6 +41,12 @@ export async function registerTrackedFlightService(
     { db: customDb = db, claimsService } = {}
 ) {
     const { tracked, paidClaims } = await customDb.transaction(async (tx) => {
+        if (process.env.NODE_ENV === 'production') {
+            await tx.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[userId]);
+            const count = await tx.query('SELECT count(*) AS count FROM tracked_flights WHERE user_id=$1',[userId]);
+            if (Number(count.rows[0].count) >= 100) throw new AppError(409,'FLIGHT_LIMIT','Maximum 100 tracked bookings per account.');
+            if (!/^(LY|IZ)\d/.test(input.flightNumber)) throw new AppError(400,'UNSUPPORTED_AIRLINE','Supported airlines: EL AL (LY) and Arkia (IZ).');
+        }
         const flights = createFlightDAL(tx);
         const distanceKm = calculateDistance(
             input.departureLat,

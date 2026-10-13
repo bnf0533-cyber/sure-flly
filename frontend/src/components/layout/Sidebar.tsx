@@ -12,7 +12,7 @@ import clsx from "clsx";
 import { useAuthStore } from "../../store/authStore";
 
 const navigation = [
-    { to: "/demo", label: "הדגמה חיה", icon: Plane },
+    ...(import.meta.env.DEV ? [{ to: "/demo", label: "הדגמה חיה", icon: Plane }] : []),
     { to: "/", label: "סקירה כללית", icon: LayoutDashboard },
     { to: "/flights", label: "הטיסות שלי", icon: Plane },
     { to: "/claims", label: "תביעות", icon: FileCheck2 },
@@ -124,7 +124,7 @@ export function Sidebar() {
             </aside>
             <nav
                 aria-label="Mobile navigation"
-                className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+                className="fixed inset-x-0 bottom-0 z-30 grid grid-flow-col auto-cols-fr border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
             >
                 {navigation.map(({ to, label, icon: Icon }) => (
                     <NavLink

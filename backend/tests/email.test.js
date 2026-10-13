@@ -47,3 +47,23 @@ test("airline instructions use correct forms and escape user text",()=>{
     const message=buildAirlineMessage({flight:{flightNumber:"LY123",status:"DELAYED",delayMinutes:120,departureAirport:"TLV",arrivalAirport:"LHR",scheduledDeparture:new Date(),scheduledArrival:new Date()},passenger:{name:"<img src=x>",email:"test@example.test"},pnr:"TEST01"});
     assert.ok(!message.html.includes("<img"));assert.match(message.html,/&lt;img/);assert.match(message.text,/לא קבעה זכאות/);
 });
+
+test('queued email keeps the same observation as its PDF',async t=>{
+    const {db,prepare,flight}=await fixture(t);await prepare();
+    await createFlightDAL(db).updateStatus(flight.id,{status:'CANCELLED',delayMinutes:0});
+    let sent;await createEmailWorker({db,enabled:()=>true,sender:{async send(message){sent=message;return {messageId:'snapshot'};}}}).tick();
+    assert.match(sent.text,/120/);assert.ok(!sent.text.includes('ביטול טיסה'));
+});
+test('two workers cannot send the same pending claim concurrently',async t=>{
+    const {db,prepare}=await fixture(t);await prepare();let calls=0;
+    const sender={async send(){calls++;return {messageId:'one'};}};
+    await Promise.all([createEmailWorker({db,sender,enabled:()=>true}).tick(),createEmailWorker({db,sender,enabled:()=>true}).tick()]);
+    assert.equal(calls,1);
+});
+test('worker stop waits for an in-flight delivery before closing the database',async t=>{
+    const {db,prepare}=await fixture(t);await prepare();let release,started;
+    const begun=new Promise(r=>started=r), gate=new Promise(r=>release=r);
+    const worker=createEmailWorker({db,enabled:()=>true,sender:{async send(){started();await gate;return {messageId:'drained'};}}});
+    const run=worker.tick();await begun;let stopped=false;const stop=worker.stop().then(()=>stopped=true);
+    await Promise.resolve();assert.equal(stopped,false);release();await Promise.all([run,stop]);assert.equal(stopped,true);
+});

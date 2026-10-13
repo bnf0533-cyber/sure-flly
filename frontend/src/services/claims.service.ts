@@ -2,6 +2,9 @@ import { api, getData } from "./api";
 import type { Claim } from "../types/claims.types";
 
 export const claimsService = {
+    async instructions(id: string) {
+        return getData<{url:string;subject:string;text:string;letter:string}>(`/claims/${encodeURIComponent(id)}/instructions`);
+    },
     async list() {
         const claims = await getData<Claim[]>("/claims");
         return claims;

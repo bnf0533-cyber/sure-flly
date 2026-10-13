@@ -48,7 +48,7 @@ export function createAviationstackProvider({ apiKey, fetchFn = fetch } = {}) {
 
             // Use arrival delay for compensation, never substitute departure delay.
             let delayMinutes = flight.delayMinutes ?? 0;
-            const arrival = result.arrival;
+            const arrival = result.arrival || {};
             const arrivalTime = result.flight_status === "landed" ? arrival.actual : arrival.estimated;
             const difference = Date.parse(arrivalTime) - Date.parse(arrival.scheduled);
             if (Number.isFinite(difference)) {
